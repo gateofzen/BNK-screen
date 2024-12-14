@@ -1773,46 +1773,53 @@
     </svg>
     <button id="startButton">Start Reacting to Sound</button>
     <script>
-        const svg = document.getElementById('svg');
-        const svgElements = svg.querySelectorAll('path[fill="#fbfffe"]');
-        const startButton = document.getElementById('startButton');
+  const svg = document.getElementById('svg');
+  const svgElements = svg.querySelectorAll('path[fill="#fbfffe"]');
+  const startButton = document.getElementById('startButton');
 
-        async function startAudio() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const analyser = audioContext.createAnalyser();
-                analyser.fftSize = 256;
-                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+  async function startAudio() {
+      try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
-                const source = audioContext.createMediaStreamSource(stream);
-                source.connect(analyser);
+          const source = audioContext.createMediaStreamSource(stream);
+          source.connect(analyser);
 
-                function getRainbowColor(frequency) {
-                    const hue = (frequency / 255) * 360; // Convert frequency to hue
-                    return `hsl(${hue}, 100%, 50%)`;
-                }
+          // 周波数を色に変換する関数（反転なし）
+          function getRainbowColor(frequency) {
+              const hue = (frequency / 255) * 360; // 周波数値をそのまま使用
+              return `hsl(${hue}, 100%, 50%)`;
+          }
 
-                function animateColors() {
-                    analyser.getByteFrequencyData(dataArray);
-                    svgElements.forEach((element, index) => {
-                        const frequency = dataArray[index % dataArray.length];
-                        const color = getRainbowColor(frequency);
-                        element.setAttribute('fill', color);
-                    });
-                    requestAnimationFrame(animateColors);
-                }
+          function animateColors() {
+              analyser.getByteFrequencyData(dataArray);
 
-                animateColors();
-            } catch (error) {
-                alert('Error accessing microphone: ' + error.message);
-            }
-        }
+              // 平方根を適用してスケーリング
+              const processedData = dataArray.map(value => Math.sqrt(value) * 16); // 値を16倍してスケールを拡大
 
-        startButton.addEventListener('click', () => {
-            startButton.style.display = 'none'; // Hide the button after starting
-            startAudio();
-        });
-    </script>
-</body>
-</html>
+              svgElements.forEach((element, index) => {
+                  const frequency = processedData[index % processedData.length];
+
+                  // 値が範囲外になるのを防ぐために制限
+                  const clampedFrequency = Math.min(255, Math.max(0, frequency));
+
+                  const color = getRainbowColor(clampedFrequency);
+                  element.setAttribute('fill', color);
+              });
+              requestAnimationFrame(animateColors);
+          }
+
+          animateColors();
+      } catch (error) {
+          alert('マイクへのアクセス中にエラーが発生しました: ' + error.message);
+      }
+  }
+
+  startButton.addEventListener('click', () => {
+      startButton.style.display = 'none'; // ボタンを非表示
+      startAudio();
+  });
+</script>
